@@ -1,7 +1,6 @@
 import time
 
 from selenium import webdriver
-from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.select import Select
@@ -11,6 +10,7 @@ URL = 'https://epc.lib.tuke.sk/PrehladPubl.aspx'
 
 
 class Parser:
+    pagination_index = 0
 
     def __init__(self):
         self.driver = webdriver.Firefox(executable_path='../drivers/geckodriverMacOs')
@@ -38,28 +38,33 @@ class Parser:
         button.click()
 
     def load_table(self):
-        index = 0
+        self.pagination_index = 1
         pagination_list = self.driver.find_elements_by_css_selector(
             "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
 
-        while index < len(pagination_list):
+        while self.pagination_index < len(pagination_list):
             pagination_list = self.driver.find_elements_by_css_selector(
                 "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
 
-            if pagination_list[index].get_attribute("innerText") == "1":
-                index += 1
+            if pagination_list[self.pagination_index].get_attribute("innerText") == "1":
+                self.pagination_index += 1
                 continue
                 # scraping
 
-            pagination_list[index].click()
+            pagination_list[self.pagination_index].click()
+            self.pagination_index += 1
+
+            if self.pagination_index == len(pagination_list) and \
+                    pagination_list[self.pagination_index - 1].get_attribute("innerText") != "...":
+                return
+
             time.sleep(5)
-            index += 1
 
         self.load_table()
 
 
 if __name__ == '__main__':
     parser = Parser()
-    parser.load_first_table(2)
+    parser.load_first_table(7)
     parser.load_table()
     parser.driver.quit()
