@@ -71,7 +71,6 @@ class Parser:
             # need to load again because of DOM was reload
             pagination_list = self.driver.find_elements_by_css_selector(
                 "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
-
             # remove ... at the beginning
             if pagination_list[0].get_attribute("innerText") == "...":
                 pagination_list.remove(pagination_list[0])
@@ -80,7 +79,7 @@ class Parser:
             if pagination_list[pagination_index].get_attribute("innerText") == "...":
                 pagination_list[pagination_index].click()
                 time.sleep(5)
-                break
+                self.load_table()
 
             if not pagination_list[pagination_index].get_attribute("innerText") in self.visited_pages:
                 pagination_list[pagination_index].click()
@@ -89,5 +88,3 @@ class Parser:
                 self.scrap_table()
 
             pagination_index += 1
-
-        self.load_table()
