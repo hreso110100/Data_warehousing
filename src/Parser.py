@@ -29,8 +29,6 @@ class Parser:
         self.click_on_element("ctl00_ContentPlaceHolderMain_btnHladaj")
         WebDriverWait(self.driver, 10).until(
             expected_conditions.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolderMain_gvVystupyByFilter")))
-        self.visited_pages.append("1")
-        self.scrap_table()
 
     def select_from_dropdown(self, parent: str, index: int):
         selector = self.click_on_element(parent)
@@ -62,8 +60,10 @@ class Parser:
                        responsibilities=data[5].text,
                        citations=data[8].text))
 
+        print(len(self.records))
+
     def load_table(self):
-        pagination_index = 1
+        pagination_index = 0
         pagination_list = self.driver.find_elements_by_css_selector(
             "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
 
@@ -72,16 +72,19 @@ class Parser:
             pagination_list = self.driver.find_elements_by_css_selector(
                 "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
 
-            # checking for last pagination
-            if pagination_index == len(pagination_list) and \
-                    pagination_list[pagination_index - 1].get_attribute("innerText") != "...":
-                print(len(self.records))
-                return
+            # remove ... at the beginning
+            if pagination_list[0].get_attribute("innerText") == "...":
+                pagination_list.remove(pagination_list[0])
+
+            # if pagination is at the end just click
+            if pagination_list[pagination_index].get_attribute("innerText") == "...":
+                pagination_list[pagination_index].click()
+                time.sleep(5)
+                break
 
             if not pagination_list[pagination_index].get_attribute("innerText") in self.visited_pages:
                 pagination_list[pagination_index].click()
-                if pagination_list[pagination_index].get_attribute("innerText") != "...":
-                    self.visited_pages.append(pagination_list[pagination_index].get_attribute("innerText"))
+                self.visited_pages.append(pagination_list[pagination_index].get_attribute("innerText"))
                 time.sleep(5)
                 self.scrap_table()
 
