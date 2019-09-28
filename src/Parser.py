@@ -1,3 +1,4 @@
+import csv
 import time
 
 from bs4 import BeautifulSoup
@@ -14,7 +15,6 @@ URL = 'https://epc.lib.tuke.sk/PrehladPubl.aspx'
 
 class Parser:
     visited_pages = []
-    records = []
 
     def __init__(self):
         self.driver = webdriver.Firefox(executable_path='../drivers/geckodriverMacOs')
@@ -51,16 +51,19 @@ class Parser:
         for row in rows:
             data = row.find_all("span")
 
-            self.records.append(
-                Record(archive_number=data[0].text,
-                       category=data[1].text,
-                       year_of_publication=data[2].text,
-                       name=data[3].text,
-                       author=data[7].text,
-                       responsibilities=data[5].text,
-                       citations=data[8].text))
+            record = Record(archive_number=data[0].text,
+                            category=data[1].text,
+                            year_of_publication=data[2].text,
+                            name=data[3].text,
+                            author=data[7].text,
+                            responsibilities=data[5].text,
+                            citations=data[8].text)
 
-        print(len(self.records))
+            with open('../data/records_rek.csv', 'a') as file:
+                writer = csv.writer(file)
+                writer.writerow(
+                    [record.archive_number, record.category, record.year_of_publication, record.name, record.author,
+                     record.responsibilities, record.citations])
 
     def load_table(self):
         pagination_index = 0
@@ -69,6 +72,7 @@ class Parser:
 
         while pagination_index < len(pagination_list):
 
+            # DOM was reloaded, need find reference again
             pagination_list = self.driver.find_elements_by_css_selector(
                 "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
 
@@ -85,7 +89,7 @@ class Parser:
             if not pagination_list[pagination_index].get_attribute("innerText") in self.visited_pages:
                 pagination_list[pagination_index].click()
                 self.visited_pages.append(pagination_list[pagination_index].get_attribute("innerText"))
-                time.sleep(5)
+                time.sleep(10)
                 self.scrap_table()
 
             pagination_index += 1
