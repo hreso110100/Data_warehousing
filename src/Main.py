@@ -1,7 +1,9 @@
 from src.Parser import Parser
 
+
+from src.config.Config import Config
+
 if __name__ == '__main__':
-    parser = Parser()
-    parser.load_first_table(9)
+    parser = Parser(Config())
     parser.load_table()
     parser.driver.quit()

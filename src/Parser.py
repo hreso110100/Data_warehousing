@@ -1,4 +1,6 @@
 import csv
+import glob
+import os
 import time
 
 from bs4 import BeautifulSoup
@@ -8,21 +10,38 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.wait import WebDriverWait
 
+from src.config.Config import Config
 from src.model.Record import Record
 
-URL = 'https://epc.lib.tuke.sk/PrehladPubl.aspx'
+CONFIG_PATH = '../src/config/config.yml'
 
 
 class Parser:
     visited_pages = []
+    page_number = 1
 
-    def __init__(self):
+    def __init__(self, config: Config):
+        self.config_dict = config.parse_config(CONFIG_PATH)
         self.driver = webdriver.Firefox(executable_path='../drivers/geckodriverMacOs')
+        self.clean_dirs()
+        self.faculty_index = self.config_dict['data']['faculty_index']
+        self.faculty = self.config_dict['data']['faculty']
         self.load_home_page()
 
+    def clean_dirs(self):
+        if self.config_dict['data']['remove']:
+            files = glob.glob('../data/*')
+            for f in files:
+                os.remove(f)
+
+            files = glob.glob('../html_tables/*')
+            for f in files:
+                os.remove(f)
+
     def load_home_page(self):
-        self.driver.get(URL)
+        self.driver.get(self.config_dict['web']['url'])
         self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlKrit1", 2)
+        self.load_first_table(self.faculty_index)
 
     def load_first_table(self, faculty_index: int):
         self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlFakulta", faculty_index)
@@ -44,6 +63,11 @@ class Parser:
     def scrap_table(self):
         scrapper = BeautifulSoup(self.driver.page_source, 'lxml')
         rows = scrapper.select("#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr")
+
+        with open(f'../html_tables/table_{self.faculty}_{self.page_number}.txt', 'a') as file:
+            file.write(self.driver.page_source)
+            self.page_number += 1
+
         rows.remove(rows[0])
         rows.remove(rows[-1])
         rows.remove(rows[-1])
@@ -59,7 +83,7 @@ class Parser:
                             responsibilities=data[5].text,
                             citations=data[8].text)
 
-            with open('../data/records_rek.csv', 'a') as file:
+            with open(f'../data/records_{self.faculty}.csv', 'a') as file:
                 writer = csv.writer(file)
                 writer.writerow(
                     [record.archive_number, record.category, record.year_of_publication, record.name, record.author,
