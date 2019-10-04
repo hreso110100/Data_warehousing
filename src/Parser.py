@@ -3,6 +3,7 @@ import glob
 import os
 import time
 
+import pandas as pandas
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -39,12 +40,15 @@ class Parser:
                 os.remove(f)
 
     def load_home_page(self):
-        self.driver.get(self.config_dict['web']['url'])
+        self.driver.get(self.config_dict['web']['url_epc'])
         self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlKrit1", 2)
         self.load_first_table(self.faculty_index)
 
     def load_first_table(self, faculty_index: int):
         self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlFakulta", faculty_index)
+        self.click_on_element("ctl00_ContentPlaceHolderMain_lblRoz")
+        self.click_on_element("ctl00_ContentPlaceHolderMain_chbOhlasy")
+        self.click_on_element("ctl00_ContentPlaceHolderMain_chbAjPercentualnePodiely")
         self.click_on_element("ctl00_ContentPlaceHolderMain_btnHladaj")
         WebDriverWait(self.driver, 10).until(
             expected_conditions.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolderMain_gvVystupyByFilter")))
@@ -75,19 +79,31 @@ class Parser:
         for row in rows:
             data = row.find_all("span")
 
+            raw_text = row.find_all("p")
+            try:
+                list_citations = raw_text[1].text.split(")]", 1)[1].strip().split("   ")
+
+                if list_citations[0] == "":
+                    list_citations.clear()
+            except IndexError:
+                print("Cannot parse list of citations")
+                list_citations = []
+
             record = Record(archive_number=data[0].text,
                             category=data[1].text,
                             year_of_publication=data[2].text,
                             name=data[3].text,
-                            author=data[7].text,
-                            responsibilities=data[5].text,
-                            citations=data[8].text)
+                            other=data[6].text,
+                            authors=data[7].text,
+                            number_citations=data[8].text,
+                            citation_records=list_citations,
+                            keywords=list())
 
             with open(f'../data/records_{self.faculty}.csv', 'a') as file:
                 writer = csv.writer(file)
                 writer.writerow(
-                    [record.archive_number, record.category, record.year_of_publication, record.name, record.author,
-                     record.responsibilities, record.citations])
+                    [record.archive_number, record.category, record.year_of_publication, record.name, record.other,
+                     record.authors, record.number_citations, record.citation_records])
 
     def load_table(self):
         pagination_index = 0
@@ -117,3 +133,7 @@ class Parser:
                 self.scrap_table()
 
             pagination_index += 1
+
+    def get_keywords(self):
+        data = pandas.read_csv('test.csv', usecols=3, header=None)
+        print(data)
