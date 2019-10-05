@@ -3,32 +3,26 @@ import glob
 import os
 import time
 
-import pandas as pandas
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.select import Select
-from selenium.webdriver.support.wait import WebDriverWait
 
 from src.config.Config import Config
 from src.model.Record import Record
+from src.parsers.ElementOperations import ElementOperations
 
-CONFIG_PATH = '../src/config/config.yml'
 
-
-class Parser:
+class EpcParser(ElementOperations):
     visited_pages = []
     page_number = 1
 
-    def __init__(self, config: Config):
-        self.config_dict = config.parse_config(CONFIG_PATH)
-        self.driver = webdriver.Firefox(executable_path='../drivers/geckodriverMacOs')
+    def __init__(self):
+        super().__init__()
+        self.config_dict = Config().load()
         self.clean_dirs()
         self.faculty_index = self.config_dict['data']['faculty_index']
         self.faculty = self.config_dict['data']['faculty']
-        self.load_home_page()
+        self.load_first_table(self.faculty_index)
 
+    # clean data and html_tables dirs if configuration value data.remove is true
     def clean_dirs(self):
         if self.config_dict['data']['remove']:
             files = glob.glob('../data/*')
@@ -39,55 +33,44 @@ class Parser:
             for f in files:
                 os.remove(f)
 
-    def load_home_page(self):
+    # load first table base on faculty
+    def load_first_table(self, faculty_index: int):
         self.driver.get(self.config_dict['web']['url_epc'])
         self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlKrit1", 2)
-        self.load_first_table(self.faculty_index)
-
-    def load_first_table(self, faculty_index: int):
         self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlFakulta", faculty_index)
         self.click_on_element("ctl00_ContentPlaceHolderMain_lblRoz")
+        self.wait_for_element(10, "ctl00_ContentPlaceHolderMain_chbOhlasy")
         self.click_on_element("ctl00_ContentPlaceHolderMain_chbOhlasy")
         self.click_on_element("ctl00_ContentPlaceHolderMain_chbAjPercentualnePodiely")
         self.click_on_element("ctl00_ContentPlaceHolderMain_btnHladaj")
-        WebDriverWait(self.driver, 10).until(
-            expected_conditions.presence_of_element_located((By.ID, "ctl00_ContentPlaceHolderMain_gvVystupyByFilter")))
+        self.wait_for_element(10, "ctl00_ContentPlaceHolderMain_gvVystupyByFilter")
 
-    def select_from_dropdown(self, parent: str, index: int):
-        selector = self.click_on_element(parent)
-        Select(selector).select_by_index(index)
-
-    def click_on_element(self, element_id: str):
-        element = WebDriverWait(self.driver, 10).until(
-            expected_conditions.presence_of_element_located((By.ID, element_id)))
-        element.click()
-
-        return element
-
+    # scrap HTML tree and get data
     def scrap_table(self):
         scrapper = BeautifulSoup(self.driver.page_source, 'lxml')
-        rows = scrapper.select("#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr")
 
+        # saving HTML table for later
         with open(f'../html_tables/table_{self.faculty}_{self.page_number}.txt', 'a') as file:
             file.write(self.driver.page_source)
             self.page_number += 1
 
+        rows = scrapper.select("#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr")
         rows.remove(rows[0])
         rows.remove(rows[-1])
         rows.remove(rows[-1])
 
         for row in rows:
-            data = row.find_all("span")
-
-            raw_text = row.find_all("p")
+            # getting list of citations
             try:
-                list_citations = raw_text[1].text.split(")]", 1)[1].strip().split("   ")
+                list_citations = row.find_all("p")[1].text.split(")]", 1)[1].strip().split("   ")
 
                 if list_citations[0] == "":
                     list_citations.clear()
             except IndexError:
-                print("Cannot parse list of citations")
                 list_citations = []
+
+            # getting other data
+            data = row.find_all("span")
 
             record = Record(archive_number=data[0].text,
                             category=data[1].text,
@@ -99,26 +82,21 @@ class Parser:
                             citation_records=list_citations,
                             keywords=list())
 
+            # saving gathered results to csv file
             with open(f'../data/records_{self.faculty}.csv', 'a') as file:
                 writer = csv.writer(file)
                 writer.writerow(
                     [record.archive_number, record.category, record.year_of_publication, record.name, record.other,
-                     record.authors, record.number_citations, record.citation_records])
+                     record.authors, record.number_citations, record.citation_records], record.keywords)
 
+    # list through pagination
     def load_table(self):
         pagination_index = 0
-        pagination_list = self.driver.find_elements_by_css_selector(
-            "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
+        pagination_list = self.get_pagination_list()
 
         while pagination_index < len(pagination_list):
-
             # DOM was reloaded, need find reference again
-            pagination_list = self.driver.find_elements_by_css_selector(
-                "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
-
-            # remove ... at the beginning
-            if pagination_list[0].get_attribute("innerText") == "...":
-                pagination_list.remove(pagination_list[0])
+            pagination_list = self.get_pagination_list()
 
             # if pagination is at the end just click
             if pagination_list[pagination_index].get_attribute("innerText") == "...":
@@ -134,6 +112,14 @@ class Parser:
 
             pagination_index += 1
 
-    def get_keywords(self):
-        data = pandas.read_csv('test.csv', usecols=3, header=None)
-        print(data)
+        self.driver.quit()
+
+    # getting pagination from HTML
+    def get_pagination_list(self):
+        pagination_list = self.driver.find_elements_by_css_selector(
+            "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter tbody tr:last-child td table tbody tr td")
+        # remove ... at the beginning
+        if pagination_list[0].get_attribute("innerText") == "...":
+            pagination_list.remove(pagination_list[0])
+
+        return pagination_list

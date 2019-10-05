@@ -1,10 +1,9 @@
-from src.Parser import Parser
-
-
-from src.config.Config import Config
+from src.parsers.CrepcParser import CrepcParser
+from src.parsers.EpcParser import EpcParser
 
 if __name__ == '__main__':
-    parser = Parser(Config())
-    parser.load_table()
-    parser.get_keywords()
-    parser.driver.quit()
+    # epc_parser = EpcParser()
+    # epc_parser.load_table()
+
+    crepc_parser = CrepcParser()
+    crepc_parser.get_keywords()
