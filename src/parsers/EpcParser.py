@@ -36,14 +36,14 @@ class EpcParser(ElementOperations):
     # load first table base on faculty
     def load_first_table(self, faculty_index: int):
         self.driver.get(self.config_dict['web']['url_epc'])
-        self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlKrit1", 2)
-        self.select_from_dropdown("ctl00_ContentPlaceHolderMain_ddlFakulta", faculty_index)
-        self.click_on_element("ctl00_ContentPlaceHolderMain_lblRoz")
-        self.wait_for_element(10, "ctl00_ContentPlaceHolderMain_chbOhlasy")
-        self.click_on_element("ctl00_ContentPlaceHolderMain_chbOhlasy")
-        self.click_on_element("ctl00_ContentPlaceHolderMain_chbAjPercentualnePodiely")
-        self.click_on_element("ctl00_ContentPlaceHolderMain_btnHladaj")
-        self.wait_for_element(10, "ctl00_ContentPlaceHolderMain_gvVystupyByFilter")
+        self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlKrit1", 2)
+        self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlFakulta", faculty_index)
+        self.click_on_element("#ctl00_ContentPlaceHolderMain_lblRoz")
+        self.wait_for_element(10, "#ctl00_ContentPlaceHolderMain_chbOhlasy")
+        self.click_on_element("#ctl00_ContentPlaceHolderMain_chbOhlasy")
+        self.click_on_element("#ctl00_ContentPlaceHolderMain_chbAjPercentualnePodiely")
+        self.click_on_element("#ctl00_ContentPlaceHolderMain_btnHladaj")
+        self.wait_for_element(10, "#ctl00_ContentPlaceHolderMain_gvVystupyByFilter")
 
     # scrap HTML tree and get data
     def scrap_table(self):
@@ -87,7 +87,7 @@ class EpcParser(ElementOperations):
                 writer = csv.writer(file)
                 writer.writerow(
                     [record.archive_number, record.category, record.year_of_publication, record.name, record.other,
-                     record.authors, record.number_citations, record.citation_records], record.keywords)
+                     record.authors, record.number_citations, record.citation_records, record.keywords])
 
     # list through pagination
     def load_table(self):
