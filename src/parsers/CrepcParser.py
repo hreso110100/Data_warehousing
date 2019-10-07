@@ -18,10 +18,8 @@ class CrepcParser(ElementOperations):
     def get_keywords(self):
         file = pandas.read_csv(f'../data/records_{self.faculty}.csv', header=None)
 
-        kokot = file.values[:105]
-
-        for index, item in enumerate(kokot):
-            if int(item[2]) >= 2017:
+        for index, item in enumerate(file.values):
+            if int(item[2]) > 2017:
                 self.driver.get(self.config_dict['web']['url_crepc_2'])
                 self.update_csv(file, index, self.search_on_crepc_2(item[3]))
             else:
@@ -44,9 +42,9 @@ class CrepcParser(ElementOperations):
         time.sleep(5)
 
         if not self.is_element_present(".alert-danger"):
-            self.wait_for_element(10, ".line-margin")
+            self.wait_for_element(10, ".group.line-margin:nth-of-type(1)")
 
-            return self.scrap_keywords(".text-wrap")
+            return self.scrap_keywords(".group.line-margin:nth-of-type(1) a")
         else:
             return []
 
@@ -61,8 +59,8 @@ class CrepcParser(ElementOperations):
         time.sleep(2)
 
         if not self.is_element_present("#lblInfo"):
-            time.sleep(2)
             self.click_on_element(".rght a")
+            time.sleep(5)
 
             return self.scrap_keywords(".wht1:nth-of-type(7) a")
         else:
