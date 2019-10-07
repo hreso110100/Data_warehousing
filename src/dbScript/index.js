@@ -11,8 +11,11 @@ const connection = mysql.createConnection({
 });
 
 const results = [];
-let authorsQuery = `INSERT INTO authors(name) VALUES`;
-let epcsQuery = `INSERT INTO epcs(epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages) VALUES`;
+let epcsQuery = `INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages) VALUES`;
+let epcsId = 0;
+let authorsQuery = `INSERT INTO authors(id, name) VALUES`;
+let authorsId = 0;
+let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id) VALUES`;
 
 function csvToDb() {
     try {
@@ -23,7 +26,9 @@ function csvToDb() {
                 connection.connect();
                 results.forEach(row => {
                     const info = parseInfo(row.info);
+                    epcsId++;
                     writeEpc({
+                        id: epcsId,
                         epc_id: row.id,
                         title: row.title.replace(/'/g, '\'\''),
                         epc_cat: row.epc_cat ? row.epc_cat : null,
@@ -35,25 +40,26 @@ function csvToDb() {
                     })
                     const authors = getAuthors(row.authors)
                     authors.forEach(author => {
-                        authorsQuery = authorsQuery.concat(`('${author.name}'),`)
+                        authorsId++;
+                        authorsQuery = authorsQuery.concat(`(${authorsId},'${author.name}'),`)
+                        epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}),`)
                     })
                 });
 
                 // prepared query for epcs (all values in one shot)
                 epcsQuery = epcsQuery.slice(0, -1);
-                connection.query(epcsQuery, (error, results, fields) => {
-                    if (error)
-                        console.log(error);
-                    console.log(results);
-                });
+                insertToDb(epcsQuery);
 
                 // prepared query for authors (all values in one shot)
                 authorsQuery = authorsQuery.slice(0, -1);
-                connection.query(authorsQuery, (error, results, fields) => {
-                    if (error)
-                        console.log(error);
-                    console.log(results);
-                });
+                insertToDb(authorsQuery);
+
+                // if authors and epcs exists, now we can push epcsAuthors
+                epcsAuthorsQuery = epcsAuthorsQuery.slice(0, -1);
+                console.log(epcsAuthorsQuery);
+                insertToDb(epcsAuthorsQuery);
+
+                // end connection to db
                 connection.end();
             });
     } catch (e) {
@@ -62,12 +68,17 @@ function csvToDb() {
     }
 }
 
-function writeEpc({epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, language, arch_num, issn, quoted_ant}) {
-    epcsQuery = epcsQuery.concat(`('${epc_id}', '${title}', '${epc_cat}', '${edition}', '${publisher}', ${year}, '${isbn}', '${numberOfPages}'),`)
+function insertToDb(query){
+    connection.query(query, (error, results, fields) => {
+        if (error)
+            console.log(error);
+        console.log(results);
+    });
+
 }
 
-function writeEpcsAuthors(part, epc_id, author_id) {
-
+function writeEpc({id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, language, arch_num, issn, quoted_ant}) {
+    epcsQuery = epcsQuery.concat(`(${id}, '${epc_id}', '${title}', '${epc_cat}', '${edition}', '${publisher}', ${year}, '${isbn}', '${numberOfPages}'),`)
 }
 
 function getAuthors(item) {
