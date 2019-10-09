@@ -8,7 +8,8 @@ class Record:
                  other: str,
                  number_citations: str,
                  citation_records: list,
-                 keywords: list):
+                 keywords: list,
+                 workplace: str):
         self.archive_number = archive_number
         self.category = category
         self.year_of_publication = year_of_publication
@@ -18,3 +19,4 @@ class Record:
         self.number_citations = number_citations
         self.citation_records = citation_records
         self.keywords = keywords
+        self.workplace = workplace

@@ -42,9 +42,10 @@ class CrepcParser(ElementOperations):
         time.sleep(5)
 
         if not self.is_element_present(".alert-danger"):
-            self.wait_for_element(10, ".group.line-margin:nth-of-type(1)")
-
-            return self.scrap_keywords(".group.line-margin:nth-of-type(1) a")
+            if self.is_element_present(".group.line-margin:nth-of-type(1)"):
+                return self.scrap_keywords(".group.line-margin:nth-of-type(1) a")
+            else:
+                return []
         else:
             return []
 
