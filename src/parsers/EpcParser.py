@@ -4,6 +4,7 @@ import os
 import time
 
 from bs4 import BeautifulSoup
+from selenium.common.exceptions import NoSuchElementException
 
 from src.config.Config import Config
 from src.model.Record import Record
@@ -46,9 +47,11 @@ class EpcParser(ElementOperations):
     def load_results(self, workplace_index: int) -> bool:
         self.load_base_page()
         self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlFakulta", self.faculty_index)
+        time.sleep(3)
         self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlStredisko", workplace_index)
+        time.sleep(3)
         self.click_on_element("#ctl00_ContentPlaceHolderMain_lblRoz")
-        self.wait_for_element(5, "#ctl00_ContentPlaceHolderMain_chbOhlasy")
+        time.sleep(3)
         self.click_on_element("#ctl00_ContentPlaceHolderMain_chbOhlasy")
         self.click_on_element("#ctl00_ContentPlaceHolderMain_chbAjPercentualnePodiely")
         self.click_on_element("#ctl00_ContentPlaceHolderMain_btnHladaj")
@@ -76,29 +79,27 @@ class EpcParser(ElementOperations):
             rows.remove(rows[-1])
 
         for row in rows:
+            data = row.find_all("span")
+
             # getting list of citations
             try:
-                list_citations = row.find_all("p")[1].text.split(")]", 1)[1].strip().split("   ")
+                list_citations_copy = row.find_all("p")[1].text.replace(data[7].text, "#####")
+                list_citations = list_citations_copy.split("#####", 1)[1].strip().split("   ")
 
                 if list_citations[0] == "":
                     list_citations.clear()
             except IndexError:
                 list_citations = []
 
-            # getting all in one row
-            data = row.find_all("span")
+            # getting bib. record
+            bib_record_copy = row.find_all("td")[4].text
+            bib_record_copy = bib_record_copy.replace(data[7].text, "")
 
-            # parse bib. record
-            bib_record = row.find_all("td")[4].text
+            for citation in list_citations:
+                bib_record_copy = bib_record_copy.replace(citation, "")
 
-            if "In: " in bib_record:
-                bib_record_copy = bib_record
-                bib_record_copy = bib_record_copy.replace(data[7].text, "")
-
-                for citation in list_citations:
-                    bib_record_copy = bib_record_copy.replace(citation, "")
-
-                other = bib_record_copy.split("In: ")[1]
+            if "In: " in bib_record_copy:
+                other = bib_record_copy.split("In: ")[1].strip()
             else:
                 other = data[6].text
 
@@ -139,12 +140,15 @@ class EpcParser(ElementOperations):
                 pagination_list[index].click()
                 time.sleep(10)
                 self.load_table(workplace)
-
-            if not pagination_list[index].get_attribute("innerText") in self.visited_pages:
-                pagination_list[index].click()
-                self.visited_pages.append(pagination_list[index].get_attribute("innerText"))
-                time.sleep(10)
-                self.scrap_table(workplace, True)
+            try:
+                if not pagination_list[index].get_attribute("innerText") in self.visited_pages:
+                    pagination_list[index].click()
+                    self.visited_pages.append(pagination_list[index].get_attribute("innerText"))
+                    time.sleep(10)
+                    self.scrap_table(workplace, True)
+            except NoSuchElementException:
+                pass
+        self.visited_pages.clear()
 
     # scrapping data from specific TUKE workplace
     def load_workplace_records(self):
