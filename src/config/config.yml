@@ -6,8 +6,8 @@ web:
 # 9 - Rektorat # 2 - SJF
 
 data:
-  #faculty: rek
-  #faculty_index: 9
-  faculty: sjf
-  faculty_index: 2
+  faculty: rek
+  faculty_index: 9
+  #faculty: sjf
+  #faculty_index: 2
   remove: false  #clean old html_files and csv files
