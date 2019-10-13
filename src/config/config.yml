@@ -10,4 +10,4 @@ data:
   #faculty_index: 9
   faculty: sjf
   faculty_index: 2
-  remove: true  #clean old html_files and csv files
+  remove: false  #clean old html_files and csv files
