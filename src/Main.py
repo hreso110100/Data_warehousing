@@ -5,5 +5,5 @@ if __name__ == '__main__':
     epc_parser = EpcParser()
     epc_parser.load_workplace_records()
 
-    crepc_parser = CrepcParser()
-    crepc_parser.get_keywords()
+    #crepc_parser = CrepcParser()
+    #crepc_parser.get_keywords()

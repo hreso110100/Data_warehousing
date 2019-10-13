@@ -4,7 +4,7 @@ import os
 import time
 
 from bs4 import BeautifulSoup
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
 
 from src.config.Config import Config
 from src.model.Record import Record
@@ -42,12 +42,12 @@ class EpcParser(ElementOperations):
     def load_base_page(self):
         self.driver.get(self.config_dict['web']['url_epc'])
         self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlKrit1", 2)
+        self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlFakulta", self.faculty_index)
+        time.sleep(3)
 
     # load first table base on faculty
     def load_results(self, workplace_index: int) -> bool:
         self.load_base_page()
-        self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlFakulta", self.faculty_index)
-        time.sleep(3)
         self.select_from_dropdown("#ctl00_ContentPlaceHolderMain_ddlStredisko", workplace_index)
         time.sleep(3)
         self.click_on_element("#ctl00_ContentPlaceHolderMain_lblRoz")
@@ -112,7 +112,7 @@ class EpcParser(ElementOperations):
                             number_citations=data[8].text,
                             citation_records=list_citations,
                             keywords=list(),
-                            workplace=workplace.split("=")[1])
+                            workplace=workplace)
 
             # saving gathered results to csv file
             with open(f'../data/records_{self.faculty}.csv', 'a') as file:
@@ -125,7 +125,6 @@ class EpcParser(ElementOperations):
     # list through pagination
     def load_table(self, workplace: str):
         pagination_list = self.get_pagination_list()
-        self.page_number = 1
 
         if pagination_list is None:
             self.scrap_table(workplace, False)
@@ -146,7 +145,7 @@ class EpcParser(ElementOperations):
                     self.visited_pages.append(pagination_list[index].get_attribute("innerText"))
                     time.sleep(10)
                     self.scrap_table(workplace, True)
-            except NoSuchElementException:
+            except (NoSuchElementException, StaleElementReferenceException):
                 pass
         self.visited_pages.clear()
 
@@ -155,9 +154,18 @@ class EpcParser(ElementOperations):
         workplaces_selector = self.driver.find_element_by_css_selector("#ctl00_ContentPlaceHolderMain_ddlStredisko")
         workplaces = [workplace.text for workplace in workplaces_selector.find_elements_by_tag_name("option")]
 
+        # removing duplicate workplaces
+        workplace_dict = {}
+
         for index, workplace in enumerate(workplaces[1:]):
-            if self.load_results(index + 1):
-                self.load_table(workplace)
+            split_workplace = workplace.split("=")
+            workplace_dict[split_workplace[0]] = (split_workplace[1], index + 1)
+
+        for (workplace_key, workplace_value) in workplace_dict.items():
+            print(f"Current workplace: {workplace_value[0]}")
+            if self.load_results(workplace_value[1]):
+                self.page_number = 1
+                self.load_table(workplace_value[0])
 
         self.driver.quit()
 
