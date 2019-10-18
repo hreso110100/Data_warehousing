@@ -37,9 +37,9 @@ class CrepcParser(ElementOperations):
 
     # searching for record on CREPC_2
     def search_on_crepc_2(self, name: str) -> list:
-        self.type_to_element("#fdivSimpleSearch__ebExpression", name)
-        self.click_on_element("#fdivSimpleSearch__anDoSearch")
-        time.sleep(5)
+        self.type_to_element("#divEbExpression > input", name)
+        self.click_on_element(".col-sm-2 > a")
+        time.sleep(3)
 
         if not self.is_element_present(".alert-danger"):
             if self.is_element_present(".group.line-margin:nth-of-type(1)"):
@@ -61,7 +61,7 @@ class CrepcParser(ElementOperations):
 
         if not self.is_element_present("#lblInfo"):
             self.click_on_element(".rght a")
-            time.sleep(5)
+            time.sleep(2)
 
             return self.scrap_keywords(".wht1:nth-of-type(7) a")
         else:
