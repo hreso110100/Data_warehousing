@@ -1,7 +1,7 @@
 **Project modules** 
 
-1. CREPCParser - scrapping data(only keywords) from CREPC website
-2. EPCParser - scrapping data from EPC website
+**1.** CREPCParser - scrapping data(only keywords) from CREPC website
+**2.** EPCParser - scrapping data from EPC website
 
 !!! Modules can be run separately in Main.py  !!!
 
@@ -15,10 +15,10 @@
 
 **ADDITIONAL INFO:** 
 
-1. EPC page sometimes freezes so script will fail to complete scrapping
+**1.** EPC page sometimes freezes so script will fail to complete scrapping
 
-2. Saving data can sometimes be slow, because of the amount of data
+**2.** Saving data can sometimes be slow, because of the amount of data
 
-3. Estimated time to scrap all data(SJF + REK + keywords) is approximately 1 day
+**3.** Estimated time to scrap all data(SJF + REK + keywords) is approximately 1 day
 
 
