@@ -1,6 +1,7 @@
 **Project modules** 
 
-**1.** CREPCParser - scrapping data(only keywords) from CREPC website
+**1.** CREPCParser - scrapping data(only keywords) from CREPC website 
+
 **2.** EPCParser - scrapping data from EPC website
 
 !!! Modules can be run separately in Main.py  !!!
