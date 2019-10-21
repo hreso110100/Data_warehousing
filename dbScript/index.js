@@ -3,6 +3,9 @@ const fs = require('fs');
 const config = require('./config');
 const csv = require('csv-parser');
 
+/**
+ * @type {Connection}
+ */
 const connection = mysql.createConnection({
     host: config.db_host,
     database: config.database,
@@ -10,6 +13,14 @@ const connection = mysql.createConnection({
     password: config.db_pass
 });
 
+/**
+ * @property {Array<csv>} results
+ * @property {string} epcsQuery
+ * @property {number} epcsId
+ * @property {string} authorsQuery
+ * @property {number} authorsId
+ * @property {string} epcsAuthorsQuery
+ */
 const results = [];
 let epcsQuery = `INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages) VALUES`;
 let epcsId = 0;
@@ -17,10 +28,13 @@ let authorsQuery = `INSERT INTO authors(id, name) VALUES`;
 let authorsId = 0;
 let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id) VALUES`;
 
+/**
+ * @description procedure to get Array<string> from csv file (data.csv) placed on ./
+ */
 function csvToDb() {
     try {
         fs.createReadStream('./data.csv')
-            .pipe(csv(['id', 'epc_cat', 'year', 'title', 'info', 'authors', 'SOME_NUMBER', 'SOMETHING', 'SOMETHING1']))
+            .pipe(csv(['id', 'epc_cat', 'year', 'title', 'info', 'authors', 'count_of_citations', 'citations', 'keywords', 'workplace']))
             .on('data', (data) => results.push(data))
             .on('end', () => {
                 connection.connect();
@@ -37,13 +51,15 @@ function csvToDb() {
                         publisher: info.publisher,
                         isbn: info.ISBN,
                         numberOfPages: info.numberOfPages
-                    })
+                    });
                     const authors = getAuthors(row.authors)
                     authors.forEach(author => {
                         authorsId++;
                         authorsQuery = authorsQuery.concat(`(${authorsId},'${author.name}'),`)
                         epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}),`)
-                    })
+                    });
+
+                    parseKeyWords(row.keywords);
                 });
 
                 // prepared query for epcs (all values in one shot)
@@ -56,7 +72,6 @@ function csvToDb() {
 
                 // if authors and epcs exists, now we can push epcsAuthors
                 epcsAuthorsQuery = epcsAuthorsQuery.slice(0, -1);
-                console.log(epcsAuthorsQuery);
                 insertToDb(epcsAuthorsQuery);
 
                 // end connection to db
@@ -76,19 +91,46 @@ function checkDb() {
     connection.end();
 }
 
-function insertToDb(query){
-    connection.query(query, (error, results, fields) => {
-        if (error)
-            console.log(error);
-        console.log(results);
-    });
+/**
+ * @description simple function for execution of DB query
+ * @param query
+ */
+function insertToDb(query) {
+    if (false) {
+        connection.query(query, (error, results, fields) => {
+            if (error)
+                console.log(error);
+            // console.log(results);
+        });
+    }
 
 }
 
+/**
+ * @description append formatted string to epc query (global variable)
+ * @param id
+ * @param epc_id
+ * @param title
+ * @param epc_cat
+ * @param edition
+ * @param publisher
+ * @param year
+ * @param isbn
+ * @param numberOfPages
+ * @param language
+ * @param arch_num
+ * @param issn
+ * @param quoted_ant
+ */
 function writeEpc({id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, language, arch_num, issn, quoted_ant}) {
     epcsQuery = epcsQuery.concat(`(${id}, '${epc_id}', '${title}', '${epc_cat}', '${edition}', '${publisher}', ${year}, '${isbn}', '${numberOfPages}'),`)
 }
 
+/**
+ *
+ * @param {string} item Strings of authors (dirty, unparsed), string should contain name of author and part (percentage) of him work on EPC
+ * @returns {Array<{name: string, part: string}>}
+ */
 function getAuthors(item) {
     item = item.replace(/\[/g, '').replace(/]/g, '');
     const authors = item.split('-');
@@ -105,6 +147,11 @@ function getAuthors(item) {
     return authorsArray;
 }
 
+/**
+ *
+ * @param {string} info Very long string of information's about epc (dirty and unparsed)
+ * @returns {{ISBN: string, numberOfPages: string, publisher: string, edition: string}}
+ */
 function parseInfo(info) {
     let ISBN = null;
     let publisher = null;
@@ -131,5 +178,22 @@ function parseInfo(info) {
 }
 
 
-// csvToDb();
-checkDb()
+/**
+ *
+ * @param {string} epc_keywords input string of EPC keywords
+ * @return {Array<string>} Array of keywords (cleared)
+ */
+function parseKeyWords(epc_keywords) {
+    if (epc_keywords && epc_keywords.length > 0 && epc_keywords !== '[]') {
+        const cleared_keywords_string = epc_keywords.replace(/([\[\]'])/g, '');
+        console.log(cleared_keywords_string);
+        const keywords_array = cleared_keywords_string.split(', ');
+        console.log(keywords_array);
+        return keywords_array
+    }
+    return null
+}
+
+
+csvToDb();
+// checkDb()
