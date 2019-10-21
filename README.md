@@ -22,4 +22,10 @@
 
 **3.** Estimated time to scrap all data(SJF + REK + keywords) is approximately 1 day
 
+**ER Diagram**
 
+![ER Diagram](dbSchema/TSSU.png)
+
+**DB Schema**
+
+![DB Schema](dbSchema/FR.png)
