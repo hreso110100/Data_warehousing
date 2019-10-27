@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Hostiteľ: localhost
--- Čas generovania: Ne 27.Okt 2019, 21:12
+-- Čas generovania: Ne 27.Okt 2019, 21:18
 -- Verzia serveru: 5.5.62-0+deb8u1
 -- Verzia PHP: 5.6.40-0+deb8u1
 
@@ -41,14 +41,14 @@ CREATE TABLE IF NOT EXISTS `epcs` (
   `id` int(11) NOT NULL,
   `title` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
   `edition` varchar(50) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `publisher` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `publisher` varchar(300) COLLATE utf8_unicode_ci DEFAULT NULL,
   `numberOfPages` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL,
   `arch_num` varchar(20) COLLATE utf8_unicode_ci NOT NULL,
   `year` year(4) NOT NULL,
   `isbn` varchar(30) COLLATE utf8_unicode_ci DEFAULT NULL,
   `issn` varchar(30) COLLATE utf8_unicode_ci DEFAULT NULL,
   `epc_cat` char(3) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `workplace` varchar(50) COLLATE utf8_unicode_ci DEFAULT NULL
+  `workplace` varchar(300) COLLATE utf8_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- --------------------------------------------------------
