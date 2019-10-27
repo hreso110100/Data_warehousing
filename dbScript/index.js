@@ -3,15 +3,13 @@ const fs = require('fs');
 const config = require('./config');
 const csv = require('csv-parser');
 
-/**
- * @type {Connection}
- */
-const connection = mysql.createConnection({
-    host: config.db_host,
-    database: config.database,
-    user: config.db_user,
-    password: config.db_pass
-});
+// getting path to datu, it should be included in the npm run start pathToData ... -> look readme
+const pathToData = process.argv[2];
+
+if (!pathToData) {
+    console.error('Missing argument, path to data');
+    return
+}
 
 /**
  * @property {Array<csv>} results
@@ -22,44 +20,82 @@ const connection = mysql.createConnection({
  * @property {string} epcsAuthorsQuery
  */
 const results = [];
-let epcsQuery = `INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages) VALUES`;
+let epcsQuery = `INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace) VALUES`;
 let epcsId = 0;
+
 let authorsQuery = `INSERT INTO authors(id, name) VALUES`;
 let authorsId = 0;
 let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id) VALUES`;
+
+let keywordsQuery = `INSERT INTO keywords(id, name) VALUES`;
+let keywordsId = 0;
+let epcsKeywordsQuery = `INSERT INTO epcs_keywords(epc_id, keyword_id) VALUES`;
+
+/**
+ * @type {Connection}
+ */
+const connection = mysql.createConnection({
+    host: config.db_host,
+    database: config.database,
+    user: config.db_user,
+    password: config.db_pass
+});
+
+async function loadStartId(callBack) {
+    connection.connect();
+
+    connection.query(`SELECT MAX(id) as LastId FROM epcs`, (error, results, fields) => {
+        epcsId = results[0].LastId;
+        console.log('0')
+    })
+    console.log('1')
+    connection.query(`SELECT MAX(id) as LastId FROM authors`, (error, results, fields) => {
+        authorsId = results[0].LastId;
+        console.log('2')
+    })
+    console.log('3')
+
+    connection.end();
+}
 
 /**
  * @description procedure to get Array<string> from csv file (data.csv) placed on ./
  */
 function csvToDb() {
     try {
-        fs.createReadStream('./data.csv')
+        fs.createReadStream(pathToData)
             .pipe(csv(['id', 'epc_cat', 'year', 'title', 'info', 'authors', 'count_of_citations', 'citations', 'keywords', 'workplace']))
             .on('data', (data) => results.push(data))
             .on('end', () => {
                 connection.connect();
-                results.forEach(row => {
+                results.forEach((row, index) => {
                     const info = parseInfo(row.info);
                     epcsId++;
                     writeEpc({
                         id: epcsId,
                         epc_id: row.id,
-                        title: row.title.replace(/'/g, '\'\''),
+                        title: row.title.replace(/'/g, '\'\'').replace(/(\/|\n|)/g, ''),
                         epc_cat: row.epc_cat ? row.epc_cat : null,
                         year: row.year,
                         edition: info.edition,
                         publisher: info.publisher,
                         isbn: info.ISBN,
-                        numberOfPages: info.numberOfPages
+                        numberOfPages: info.numberOfPages,
+                        workplace: row.workplace
                     });
-                    const authors = getAuthors(row.authors)
+                    const authors = getAuthors(row.authors);
                     authors.forEach(author => {
                         authorsId++;
-                        authorsQuery = authorsQuery.concat(`(${authorsId},'${author.name}'),`)
+                        authorsQuery = authorsQuery.concat(`(${authorsId},'${author.name}'),`);
                         epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}),`)
                     });
 
-                    parseKeyWords(row.keywords);
+                    const keywords = parseKeyWords(row.keywords);
+                    keywords.forEach(keyword => {
+                        keywordsId++;
+                        keywordsQuery = keywordsQuery.concat(`(${keywordsId}, '${keyword}'),`);
+                        epcsKeywordsQuery = epcsKeywordsQuery.concat(`(${epcsId}, ${keywordsId}),`);
+                    })
                 });
 
                 // prepared query for epcs (all values in one shot)
@@ -74,6 +110,14 @@ function csvToDb() {
                 epcsAuthorsQuery = epcsAuthorsQuery.slice(0, -1);
                 insertToDb(epcsAuthorsQuery);
 
+                // prepared query for keywords
+                keywordsQuery = keywordsQuery.slice(0, -1);
+                insertToDb(keywordsQuery);
+
+                // if keywords and epcs exists, now we can push epcsKeywords
+                epcsKeywordsQuery = epcsKeywordsQuery.slice(0, -1);
+                insertToDb(epcsKeywordsQuery);
+
                 // end connection to db
                 connection.end();
             });
@@ -83,27 +127,17 @@ function csvToDb() {
     }
 }
 
-function checkDb() {
-    connection.connect();
-    connection.query(`SELECT max(id) FROM epcs`, (error, results, fields) => {
-        console.log(results);
-    });
-    connection.end();
-}
-
 /**
  * @description simple function for execution of DB query
  * @param query
  */
 function insertToDb(query) {
-    if (false) {
-        connection.query(query, (error, results, fields) => {
-            if (error)
-                console.log(error);
-            // console.log(results);
-        });
-    }
-
+    connection.query(query, (error, results, fields) => {
+        if (error) {
+            console.log(error.code);
+        }
+        console.log(results);
+    });
 }
 
 /**
@@ -122,8 +156,15 @@ function insertToDb(query) {
  * @param issn
  * @param quoted_ant
  */
-function writeEpc({id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, language, arch_num, issn, quoted_ant}) {
-    epcsQuery = epcsQuery.concat(`(${id}, '${epc_id}', '${title}', '${epc_cat}', '${edition}', '${publisher}', ${year}, '${isbn}', '${numberOfPages}'),`)
+function writeEpc({id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace}) {
+    epcsQuery = epcsQuery.concat(`(${id},'${epc_id}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${numberOfPages}','${workplace}'),`)
+
+    // connection.query(`INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace) VALUES(${id},'${epc_id}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${numberOfPages}','${workplace}')`, (err, res, fields) => {
+    //     if (err) {
+    //         console.log(err);
+    //     }
+    //     console.log(res);
+    // })
 }
 
 /**
@@ -167,10 +208,11 @@ function parseInfo(info) {
             } else if (element.includes('s.')) {
                 numberOfPages = element.replace(/[^0-9-]/g, '');
             } else if (element.includes(':')) {
-                publisher = element;
+                publisher = element.replace(/(\s)/g, '').replace(/'/g, '\'\'').split('Spôsobprístupu:')[0];
             } else if (element.includes('vyd')) {
                 edition = element.replace(/[^a-zA-Z0-9.]/g, '');
             }
+            // console.log(publisher)
         }
     });
 
@@ -186,14 +228,10 @@ function parseInfo(info) {
 function parseKeyWords(epc_keywords) {
     if (epc_keywords && epc_keywords.length > 0 && epc_keywords !== '[]') {
         const cleared_keywords_string = epc_keywords.replace(/([\[\]'])/g, '');
-        console.log(cleared_keywords_string);
-        const keywords_array = cleared_keywords_string.split(', ');
-        console.log(keywords_array);
-        return keywords_array
+        return cleared_keywords_string.split(', ')
     }
-    return null
+    return []
 }
-
 
 csvToDb();
 // checkDb()
