@@ -20,7 +20,7 @@ if (!pathToData) {
  * @property {string} epcsAuthorsQuery
  */
 const results = [];
-let epcsQuery = `INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace) VALUES`;
+let epcsQuery = `INSERT INTO epcs(id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages, workplace) VALUES`;
 let epcsId = 0;
 
 let authorsQuery = `INSERT INTO authors(id, name) VALUES`;
@@ -41,23 +41,6 @@ const connection = mysql.createConnection({
     password: config.db_pass
 });
 
-async function loadStartId(callBack) {
-    connection.connect();
-
-    connection.query(`SELECT MAX(id) as LastId FROM epcs`, (error, results, fields) => {
-        epcsId = results[0].LastId;
-        console.log('0')
-    })
-    console.log('1')
-    connection.query(`SELECT MAX(id) as LastId FROM authors`, (error, results, fields) => {
-        authorsId = results[0].LastId;
-        console.log('2')
-    })
-    console.log('3')
-
-    connection.end();
-}
-
 /**
  * @description procedure to get Array<string> from csv file (data.csv) placed on ./
  */
@@ -73,13 +56,14 @@ function csvToDb() {
                     epcsId++;
                     writeEpc({
                         id: epcsId,
-                        epc_id: row.id,
+                        arch_num: row.id,
                         title: row.title.replace(/'/g, '\'\'').replace(/(\/|\n|)/g, ''),
                         epc_cat: row.epc_cat ? row.epc_cat : null,
                         year: row.year,
                         edition: info.edition,
                         publisher: info.publisher,
                         isbn: info.ISBN,
+                        issn: info.ISSN,
                         numberOfPages: info.numberOfPages,
                         workplace: row.workplace
                     });
@@ -95,28 +79,39 @@ function csvToDb() {
                         keywordsId++;
                         keywordsQuery = keywordsQuery.concat(`(${keywordsId}, '${keyword}'),`);
                         epcsKeywordsQuery = epcsKeywordsQuery.concat(`(${epcsId}, ${keywordsId}),`);
-                    })
-                });
+                    });
 
+                    const citations = parseCitations(row.citations);
+                });
                 // prepared query for epcs (all values in one shot)
                 epcsQuery = epcsQuery.slice(0, -1);
-                insertToDb(epcsQuery);
+                insertToDb(epcsQuery, (result) =>{
+                    console.log(result)
+                });
 
                 // prepared query for authors (all values in one shot)
                 authorsQuery = authorsQuery.slice(0, -1);
-                insertToDb(authorsQuery);
+                insertToDb(authorsQuery, (result) =>{
+                    console.log(result)
+                });
 
                 // if authors and epcs exists, now we can push epcsAuthors
                 epcsAuthorsQuery = epcsAuthorsQuery.slice(0, -1);
-                insertToDb(epcsAuthorsQuery);
+                insertToDb(epcsAuthorsQuery, (result) =>{
+                    console.log(result)
+                });
 
                 // prepared query for keywords
                 keywordsQuery = keywordsQuery.slice(0, -1);
-                insertToDb(keywordsQuery);
+                insertToDb(keywordsQuery, (result) =>{
+                    console.log(result)
+                });
 
                 // if keywords and epcs exists, now we can push epcsKeywords
                 epcsKeywordsQuery = epcsKeywordsQuery.slice(0, -1);
-                insertToDb(epcsKeywordsQuery);
+                insertToDb(epcsKeywordsQuery, (result) =>{
+                    console.log(result)
+                });
 
                 // end connection to db
                 connection.end();
@@ -130,13 +125,14 @@ function csvToDb() {
 /**
  * @description simple function for execution of DB query
  * @param query
+ * @param callback
  */
-function insertToDb(query) {
+function insertToDb(query, callback) {
     connection.query(query, (error, results, fields) => {
         if (error) {
-            console.log(error.code);
+            callback(error.code);
         }
-        console.log(results);
+        callback(results);
     });
 }
 
@@ -151,14 +147,13 @@ function insertToDb(query) {
  * @param year
  * @param isbn
  * @param numberOfPages
- * @param language
  * @param arch_num
  * @param issn
- * @param quoted_ant
  */
-function writeEpc({id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace}) {
-    epcsQuery = epcsQuery.concat(`(${id},'${epc_id}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${numberOfPages}','${workplace}'),`)
+function writeEpc({id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages, workplace}) {
+    epcsQuery = epcsQuery.concat(`(${id},'${arch_num}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${issn}','${numberOfPages}','${workplace}'),`)
 
+    // FOR TESTING
     // connection.query(`INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace) VALUES(${id},'${epc_id}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${numberOfPages}','${workplace}')`, (err, res, fields) => {
     //     if (err) {
     //         console.log(err);
@@ -195,6 +190,7 @@ function getAuthors(item) {
  */
 function parseInfo(info) {
     let ISBN = null;
+    let ISSN = null;
     let publisher = null;
     let numberOfPages = null;
     let edition = null;
@@ -203,20 +199,28 @@ function parseInfo(info) {
 
     infoArray.forEach(element => {
         if (element !== '' && element) {
+            const page = element.match(/(([0-9-]+)? (S\.|\.S|s\.|\.s|P\.|\.P|p\.|\.p) ?([0-9-]+)?)/g);
             if (element.includes('ISBN')) {
                 ISBN = element.replace(/[^0-9-]/g, '');
-            } else if (element.includes('s.')) {
-                numberOfPages = element.replace(/[^0-9-]/g, '');
+            } else if (element.includes('ISSN')) {
+                ISSN = element.replace(/[^0-9-]/g, '');
+            } else if (page) {
+                if (page[0].includes('S.')) {
+                    numberOfPages = page[0].split('S.')[1].replace(/[^0-9-]/g, '');
+                } else if (page[0].includes('P.')) {
+                    numberOfPages = page[0].split('P.')[1].replace(/[^0-9-]/g, '');
+                } else {
+                    numberOfPages = page[0].replace(/[^0-9-]/g, '');
+                }
             } else if (element.includes(':')) {
-                publisher = element.replace(/(\s)/g, '').replace(/'/g, '\'\'').split('Spôsobprístupu:')[0];
+                publisher = element.replace(/(\s|,)/g, '').replace(/'/g, '\'\'').split('Spôsobprístupu:')[0];
             } else if (element.includes('vyd')) {
                 edition = element.replace(/[^a-zA-Z0-9.]/g, '');
             }
-            // console.log(publisher)
         }
     });
 
-    return {ISBN, publisher, numberOfPages, edition}
+    return {ISBN, ISSN, publisher, numberOfPages, edition}
 }
 
 
@@ -233,5 +237,13 @@ function parseKeyWords(epc_keywords) {
     return []
 }
 
+function parseCitations(citations) {
+    if (citations !== '[]') {
+        citations = citations.replace(/(\['|'])/g, '');
+        // console.log(citations.split('\','));
+        return citations;
+    }
+    return null;
+}
+
 csvToDb();
-// checkDb()
