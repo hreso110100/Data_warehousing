@@ -21,15 +21,19 @@ if (!pathToData) {
  */
 const results = [];
 let epcsQuery = `INSERT INTO epcs(id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages, workplace) VALUES`;
-let epcsId = 0;
+let epcsId = -1;
 
 let authorsQuery = `INSERT INTO authors(id, name) VALUES`;
-let authorsId = 0;
+let authorsId = -1;
 let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id) VALUES`;
 
 let keywordsQuery = `INSERT INTO keywords(id, name) VALUES`;
-let keywordsId = 0;
+let keywordsId = -1;
 let epcsKeywordsQuery = `INSERT INTO epcs_keywords(epc_id, keyword_id) VALUES`;
+
+let quotesQuery = `INSERT INTO quotes(id, quote) VALUES`;
+let quotesId = -1;
+let epcsQuotesQuery =`INSERT INTO epcs_quotes(epc_id, quote_id) VALUES`;
 
 /**
  * @type {Connection}
@@ -38,8 +42,49 @@ const connection = mysql.createConnection({
     host: config.db_host,
     database: config.database,
     user: config.db_user,
-    password: config.db_pass
+    password: config.db_pass,
+    multipleStatements: true
 });
+
+function loadIds(callback) {
+    connection.connect();
+    connection.query(`SELECT MAX(id) as lastIdEpcs FROM epcs;
+    SELECT MAX(id) as lastIdAuthors FROM authors;
+    SELECT MAX(id) as lastIdKeywords FROM keywords;
+    SELECT MAX(id) as lastIdQuotes FROM quotes`, (err, results) => {
+        if (err) {
+            console.log(err)
+        }
+        results.forEach(result => {
+            if (result[0].hasOwnProperty('lastIdEpcs')) {
+                if (result[0].lastIdEpcs) {
+                    epcsId = result[0].lastIdEpcs;
+                } else {
+                    epcsId = 0;
+                }
+            } else if (result[0].hasOwnProperty('lastIdAuthors')) {
+                if (result[0].lastIdAuthors) {
+                    authorsId = result[0].lastIdAuthors;
+                } else {
+                    authorsId = 0;
+                }
+            } else if (result[0].hasOwnProperty('lastIdKeywords')) {
+                if (result[0].lastIdKeywords) {
+                    keywordsId = result[0].lastIdKeywords;
+                } else {
+                    keywordsId = 0;
+                }
+            } else if (result[0].hasOwnProperty('lastIdQuotes')) {
+                if (result[0].lastIdQuotes) {
+                    quotesId = result[0].lastIdQuotes;
+                } else {
+                    quotesId = 0;
+                }
+            }
+        });
+        callback();
+    });
+}
 
 /**
  * @description procedure to get Array<string> from csv file (data.csv) placed on ./
@@ -50,7 +95,6 @@ function csvToDb() {
             .pipe(csv(['id', 'epc_cat', 'year', 'title', 'info', 'authors', 'count_of_citations', 'citations', 'keywords', 'workplace']))
             .on('data', (data) => results.push(data))
             .on('end', () => {
-                connection.connect();
                 results.forEach((row, index) => {
                     const info = parseInfo(row.info);
                     epcsId++;
@@ -81,37 +125,33 @@ function csvToDb() {
                         epcsKeywordsQuery = epcsKeywordsQuery.concat(`(${epcsId}, ${keywordsId}),`);
                     });
 
-                    const citations = parseCitations(row.citations);
+                    const quotes = parseQuotes(row.citations);
+                    quotes.forEach(quote => {
+                        quotesId++;
+                        quotesQuery = quotesQuery.concat(`(${quotesId},'${quote}'),`);
+                        epcsQuotesQuery = epcsQuotesQuery.concat(`(${epcsId}, ${quotesId}),`)
+                    })
                 });
                 // prepared query for epcs (all values in one shot)
-                epcsQuery = epcsQuery.slice(0, -1);
-                insertToDb(epcsQuery, (result) =>{
-                    console.log(result)
-                });
+                insertToDb(epcsQuery);
 
                 // prepared query for authors (all values in one shot)
-                authorsQuery = authorsQuery.slice(0, -1);
-                insertToDb(authorsQuery, (result) =>{
-                    console.log(result)
-                });
+                insertToDb(authorsQuery);
 
                 // if authors and epcs exists, now we can push epcsAuthors
-                epcsAuthorsQuery = epcsAuthorsQuery.slice(0, -1);
-                insertToDb(epcsAuthorsQuery, (result) =>{
-                    console.log(result)
-                });
+                insertToDb(epcsAuthorsQuery);
 
                 // prepared query for keywords
-                keywordsQuery = keywordsQuery.slice(0, -1);
-                insertToDb(keywordsQuery, (result) =>{
-                    console.log(result)
-                });
+                insertToDb(keywordsQuery);
 
                 // if keywords and epcs exists, now we can push epcsKeywords
-                epcsKeywordsQuery = epcsKeywordsQuery.slice(0, -1);
-                insertToDb(epcsKeywordsQuery, (result) =>{
-                    console.log(result)
-                });
+                insertToDb(epcsKeywordsQuery);
+
+                // insert quotes
+                insertToDb(quotesQuery);
+
+                // after epcs exists and quotes too create relationship
+                insertToDb(epcsQuotesQuery);
 
                 // end connection to db
                 connection.end();
@@ -125,14 +165,14 @@ function csvToDb() {
 /**
  * @description simple function for execution of DB query
  * @param query
- * @param callback
  */
-function insertToDb(query, callback) {
+function insertToDb(query) {
+    query = query.slice(0, -1);
     connection.query(query, (error, results, fields) => {
         if (error) {
-            callback(error.code);
+            console.log(error.code);
         }
-        callback(results);
+        console.log(results);
     });
 }
 
@@ -237,13 +277,19 @@ function parseKeyWords(epc_keywords) {
     return []
 }
 
-function parseCitations(citations) {
+function parseQuotes(citations) {
     if (citations !== '[]') {
-        citations = citations.replace(/(\['|'])/g, '');
-        // console.log(citations.split('\','));
+        citations = citations.replace(/(\['|']|")/g, '').replace(/'/g, '');
+        citations = citations.split('\',');
         return citations;
     }
-    return null;
+    return [];
 }
 
-csvToDb();
+loadIds(() => {
+    console.log(epcsId)
+    console.log(authorsId)
+    console.log(keywordsId)
+    console.log(quotesId)
+    csvToDb();
+});

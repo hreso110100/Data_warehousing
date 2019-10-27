@@ -7,13 +7,13 @@
 -- Verzia serveru: 5.5.62-0+deb8u1
 -- Verzia PHP: 5.6.40-0+deb8u1
 
-DROP table epcs_authors;
-DROP TABLE epcs_keywords;
-DROP TABLE epcs_quotes;
-DROP TABLE authors;
-DROP TABLE keywords;
-DROP TABLE quotes;
-DROP TABLE epcs;
+DROP TABLE IF EXISTS epcs_authors;
+DROP TABLE IF EXISTS epcs_keywords;
+DROP TABLE IF EXISTS epcs_quotes;
+DROP TABLE IF EXISTS authors;
+DROP TABLE IF EXISTS keywords;
+DROP TABLE IF EXISTS quotes;
+DROP TABLE IF EXISTS epcs;
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
@@ -192,7 +192,7 @@ MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 -- AUTO_INCREMENT for table `quotes`
 --
 ALTER TABLE `quotes`
-MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+MODIFY `id` int(11) NOT NULL;
 --
 -- Obmedzenie pre exportované tabuľky
 --
