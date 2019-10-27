@@ -32,14 +32,13 @@
 
 ### **DB Script**
 
-**1.** Place data file (_data.csv_) to `./dbScript`
 
-**2.** `cd ./dbScript`
+**1.** `cd ./dbScript`
 
-**3.** `npm install`
+**2.** `npm install`
 
-**4.** Create config.json, which contain variables for DB connection. (Use config.sample.json structure)
+**3.** Create config.json, which contain variables for DB connection. (Use config.sample.json structure)
 
-**5.** ` npm run start`
+**4.** ` npm run start <path to data.csv>`
 
 **Note: DB script requires installed Nodejs and npm.**
