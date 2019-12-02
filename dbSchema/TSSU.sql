@@ -3,17 +3,9 @@
 -- http://www.phpmyadmin.net
 --
 -- Hostiteľ: localhost
--- Čas generovania: Ne 27.Okt 2019, 21:18
+-- Čas generovania: Po 02.Dec 2019, 16:03
 -- Verzia serveru: 5.5.62-0+deb8u1
 -- Verzia PHP: 5.6.40-0+deb8u1
-
-DROP TABLE IF EXISTS epcs_authors;
-DROP TABLE IF EXISTS epcs_keywords;
-DROP TABLE IF EXISTS epcs_quotes;
-DROP TABLE IF EXISTS authors;
-DROP TABLE IF EXISTS keywords;
-DROP TABLE IF EXISTS quotes;
-DROP TABLE IF EXISTS epcs;
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
@@ -36,7 +28,8 @@ SET time_zone = "+00:00";
 
 CREATE TABLE IF NOT EXISTS `authors` (
   `id` int(11) NOT NULL,
-  `name` varchar(100) COLLATE utf8_unicode_ci NOT NULL
+  `name` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
+  `lastname` varchar(100) COLLATE utf8_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- --------------------------------------------------------
@@ -55,8 +48,7 @@ CREATE TABLE IF NOT EXISTS `epcs` (
   `year` year(4) NOT NULL,
   `isbn` varchar(30) COLLATE utf8_unicode_ci DEFAULT NULL,
   `issn` varchar(30) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `epc_cat` char(3) COLLATE utf8_unicode_ci DEFAULT NULL,
-  `workplace` varchar(300) COLLATE utf8_unicode_ci DEFAULT NULL
+  `epc_cat` char(3) COLLATE utf8_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- --------------------------------------------------------
@@ -69,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `epcs_authors` (
 `id` int(11) NOT NULL,
   `epc_id` int(11) NOT NULL,
   `author_id` int(11) NOT NULL,
+  `workplace_id` int(11) NOT NULL,
   `part` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
@@ -99,6 +92,17 @@ CREATE TABLE IF NOT EXISTS `epcs_quotes` (
 -- --------------------------------------------------------
 
 --
+-- Štruktúra tabuľky pre tabuľku `faculties`
+--
+
+CREATE TABLE IF NOT EXISTS `faculties` (
+`id` int(11) NOT NULL,
+  `name` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Štruktúra tabuľky pre tabuľku `keywords`
 --
 
@@ -115,7 +119,21 @@ CREATE TABLE IF NOT EXISTS `keywords` (
 
 CREATE TABLE IF NOT EXISTS `quotes` (
 `id` int(11) NOT NULL,
-  `quote` varchar(200) COLLATE utf8_unicode_ci DEFAULT NULL
+  `quote` varchar(200) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `year` year(4) NOT NULL,
+  `code` varchar(3) COLLATE utf8_unicode_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Štruktúra tabuľky pre tabuľku `workplaces`
+--
+
+CREATE TABLE IF NOT EXISTS `workplaces` (
+`id` int(11) NOT NULL,
+  `faculty_id` int(11) NOT NULL,
+  `name` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 --
@@ -138,7 +156,7 @@ ALTER TABLE `epcs`
 -- Indexes for table `epcs_authors`
 --
 ALTER TABLE `epcs_authors`
- ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `epc_id_2` (`epc_id`,`author_id`), ADD KEY `epc_id` (`epc_id`), ADD KEY `author_id` (`author_id`);
+ ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `epc_id_2` (`epc_id`,`author_id`), ADD KEY `epc_id` (`epc_id`), ADD KEY `author_id` (`author_id`), ADD KEY `workplace_id` (`workplace_id`);
 
 --
 -- Indexes for table `epcs_keywords`
@@ -153,6 +171,12 @@ ALTER TABLE `epcs_quotes`
  ADD PRIMARY KEY (`id`), ADD KEY `epc_id` (`epc_id`), ADD KEY `quote_id` (`quote_id`);
 
 --
+-- Indexes for table `faculties`
+--
+ALTER TABLE `faculties`
+ ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `keywords`
 --
 ALTER TABLE `keywords`
@@ -163,6 +187,12 @@ ALTER TABLE `keywords`
 --
 ALTER TABLE `quotes`
  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `workplaces`
+--
+ALTER TABLE `workplaces`
+ ADD PRIMARY KEY (`id`), ADD KEY `faculty_id` (`faculty_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -184,6 +214,11 @@ MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 ALTER TABLE `epcs_quotes`
 MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 --
+-- AUTO_INCREMENT for table `faculties`
+--
+ALTER TABLE `faculties`
+MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+--
 -- AUTO_INCREMENT for table `keywords`
 --
 ALTER TABLE `keywords`
@@ -192,7 +227,12 @@ MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 -- AUTO_INCREMENT for table `quotes`
 --
 ALTER TABLE `quotes`
-MODIFY `id` int(11) NOT NULL;
+MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+--
+-- AUTO_INCREMENT for table `workplaces`
+--
+ALTER TABLE `workplaces`
+MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 --
 -- Obmedzenie pre exportované tabuľky
 --
@@ -201,6 +241,7 @@ MODIFY `id` int(11) NOT NULL;
 -- Obmedzenie pre tabuľku `epcs_authors`
 --
 ALTER TABLE `epcs_authors`
+ADD CONSTRAINT `epcs_authors_ibfk_3` FOREIGN KEY (`workplace_id`) REFERENCES `workplaces` (`id`),
 ADD CONSTRAINT `epcs_authors_ibfk_1` FOREIGN KEY (`epc_id`) REFERENCES `epcs` (`id`),
 ADD CONSTRAINT `epcs_authors_ibfk_2` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`);
 
@@ -215,8 +256,14 @@ ADD CONSTRAINT `epcs_keywords_ibfk_2` FOREIGN KEY (`keyword_id`) REFERENCES `key
 -- Obmedzenie pre tabuľku `epcs_quotes`
 --
 ALTER TABLE `epcs_quotes`
-ADD CONSTRAINT `epcs_quotes_ibfk_2` FOREIGN KEY (`quote_id`) REFERENCES `quotes` (`id`),
-ADD CONSTRAINT `epcs_quotes_ibfk_1` FOREIGN KEY (`epc_id`) REFERENCES `epcs` (`id`);
+ADD CONSTRAINT `epcs_quotes_ibfk_1` FOREIGN KEY (`epc_id`) REFERENCES `epcs` (`id`),
+ADD CONSTRAINT `epcs_quotes_ibfk_2` FOREIGN KEY (`quote_id`) REFERENCES `quotes` (`id`);
+
+--
+-- Obmedzenie pre tabuľku `workplaces`
+--
+ALTER TABLE `workplaces`
+ADD CONSTRAINT `workplaces_ibfk_1` FOREIGN KEY (`faculty_id`) REFERENCES `faculties` (`id`);
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
