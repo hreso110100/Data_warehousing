@@ -20,12 +20,13 @@ if (!pathToData) {
  * @property {string} epcsAuthorsQuery
  */
 const results = [];
+let allAuthors = [];
 let epcsQuery = `INSERT INTO epcs(id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages, workplace) VALUES`;
 let epcsId = -1;
 
-let authorsQuery = `INSERT INTO authors(id, name) VALUES`;
+let authorsQuery = `INSERT INTO authors(id, name, lastname) VALUES`;
 let authorsId = -1;
-let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id) VALUES`;
+let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id, workplace_id) VALUES`;
 
 let keywordsQuery = `INSERT INTO keywords(id, name) VALUES`;
 let keywordsId = -1;
@@ -33,7 +34,7 @@ let epcsKeywordsQuery = `INSERT INTO epcs_keywords(epc_id, keyword_id) VALUES`;
 
 let quotesQuery = `INSERT INTO quotes(id, quote) VALUES`;
 let quotesId = -1;
-let epcsQuotesQuery =`INSERT INTO epcs_quotes(epc_id, quote_id) VALUES`;
+let epcsQuotesQuery = `INSERT INTO epcs_quotes(epc_id, quote_id) VALUES`;
 
 /**
  * @type {Connection}
@@ -64,7 +65,7 @@ function loadIds(callback) {
                 }
             } else if (result[0].hasOwnProperty('lastIdAuthors')) {
                 if (result[0].lastIdAuthors) {
-                    authorsId = result[0].lastIdAuthors;
+                    authorsId = result[0].lastIdAuthors + 1;
                 } else {
                     authorsId = 0;
                 }
@@ -112,10 +113,17 @@ function csvToDb() {
                         workplace: row.workplace
                     });
                     const authors = getAuthors(row.authors);
+                    authors.forEach(author => allAuthors.push(author.name));
+                    allAuthors = [...new Set(allAuthors)];
                     authors.forEach(author => {
-                        authorsId++;
-                        authorsQuery = authorsQuery.concat(`(${authorsId},'${author.name}'),`);
-                        epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}),`)
+                        let authorIndex = allAuthors.indexOf(author.name);
+                        authorsId += authorIndex;
+                        let fullName = author.name.split(',');
+                        if (!authorsQuery.includes(`(${authorsId},'${fullName[1]}','${fullName[0]}')`)) {
+                            authorsQuery = authorsQuery.concat(`(${authorsId},'${fullName[1]}','${fullName[0]}'),`);
+                        }
+                        epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}, 1),`);
+                        authorsId -= authorIndex;
                     });
 
                     const keywords = parseKeyWords(row.keywords);
@@ -153,6 +161,7 @@ function csvToDb() {
                 // after epcs exists and quotes too create relationship
                 insertToDb(epcsQuotesQuery);
 
+                console.log(authorsQuery)
                 // end connection to db
                 connection.end();
             });
@@ -287,9 +296,5 @@ function parseQuotes(citations) {
 }
 
 loadIds(() => {
-    console.log(epcsId)
-    console.log(authorsId)
-    console.log(keywordsId)
-    console.log(quotesId)
     csvToDb();
 });
