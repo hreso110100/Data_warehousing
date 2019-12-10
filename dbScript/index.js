@@ -198,7 +198,6 @@ function csvToDb() {
                 // prepared query for authors (all values in one shot)
                 insertToDb(authorsQuery);
 
-                console.log(workplacesQuery)
                 // prepared query for workplaces
                 insertToDb(workplacesQuery);
 
