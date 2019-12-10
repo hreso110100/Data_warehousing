@@ -156,7 +156,7 @@ ALTER TABLE `epcs`
 -- Indexes for table `epcs_authors`
 --
 ALTER TABLE `epcs_authors`
- ADD PRIMARY KEY (`id`), ADD KEY `epc_id` (`epc_id`), ADD KEY `author_id` (`author_id`), ADD KEY `workplace_id` (`workplace_id`);
+ ADD PRIMARY KEY (`id`), ADD KEY `epc_id` (`epc_id`), ADD UNIQUE KEY `epc_id_2` (`epc_id`,`author_id`), ADD KEY `author_id` (`author_id`), ADD KEY `workplace_id` (`workplace_id`);
 
 --
 -- Indexes for table `epcs_keywords`
