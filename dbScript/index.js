@@ -20,12 +20,19 @@ if (!pathToData) {
  * @property {string} epcsAuthorsQuery
  */
 const results = [];
+
 let allAuthors = [];
-let epcsQuery = `INSERT INTO epcs(id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages, workplace) VALUES`;
+let allWorkplaces = [];
+
+let epcsQuery = `INSERT INTO epcs(id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages) VALUES`;
 let epcsId = -1;
 
 let authorsQuery = `INSERT INTO authors(id, name, lastname) VALUES`;
 let authorsId = -1;
+
+let workplacesQuery = `INSERT INTO workplaces(id, faculty_id, name) VALUES`;
+let workplaceId = -1;
+
 let epcsAuthorsQuery = `INSERT INTO epcs_authors(part, epc_id, author_id, workplace_id) VALUES`;
 
 let keywordsQuery = `INSERT INTO keywords(id, name) VALUES`;
@@ -52,7 +59,8 @@ function loadIds(callback) {
     connection.query(`SELECT MAX(id) as lastIdEpcs FROM epcs;
     SELECT MAX(id) as lastIdAuthors FROM authors;
     SELECT MAX(id) as lastIdKeywords FROM keywords;
-    SELECT MAX(id) as lastIdQuotes FROM quotes`, (err, results) => {
+    SELECT MAX(id) as lastIdQuotes FROM quotes;
+    SELECT MAX(id) as lastIdWorkplaces FROM workplaces`, (err, results) => {
         if (err) {
             console.log(err)
         }
@@ -80,6 +88,12 @@ function loadIds(callback) {
                     quotesId = result[0].lastIdQuotes;
                 } else {
                     quotesId = 0;
+                }
+            } else if (result[0].hasOwnProperty('lastIdWorkplaces')) {
+                if (result[0].lastIdWorkplaces) {
+                    workplaceId = result[0].lastIdWorkplaces + 1;
+                } else {
+                    workplaceId = 0;
                 }
             }
         });
@@ -109,10 +123,18 @@ function csvToDb() {
                         publisher: info.publisher,
                         isbn: info.ISBN,
                         issn: info.ISSN,
-                        numberOfPages: info.numberOfPages,
-                        workplace: row.workplace
+                        numberOfPages: info.numberOfPages
                     });
-                    const authors = getAuthors(row.authors);
+                    // console.log(row.workplace);
+                    allWorkplaces.push(row.workplace);
+                    allWorkplaces = [...new Set(allWorkplaces)];
+                    let workplaceIndex = allWorkplaces.indexOf(row.workplace);
+                    workplaceId += workplaceIndex;
+                    if (!workplacesQuery.includes(`(${workplaceId}, 1,'${row.workplace}')`)) {
+                        workplacesQuery = workplacesQuery.concat(`(${workplaceId}, 1,'${row.workplace}'),`)
+                    }
+
+                    const authors = parseAuthors(row.authors);
                     authors.forEach(author => allAuthors.push(author.name));
                     allAuthors = [...new Set(allAuthors)];
                     authors.forEach(author => {
@@ -122,7 +144,7 @@ function csvToDb() {
                         if (!authorsQuery.includes(`(${authorsId},'${fullName[1]}','${fullName[0]}')`)) {
                             authorsQuery = authorsQuery.concat(`(${authorsId},'${fullName[1]}','${fullName[0]}'),`);
                         }
-                        epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}, 1),`);
+                        epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}, ${workplaceId}),`);
                         authorsId -= authorIndex;
                     });
 
@@ -138,13 +160,18 @@ function csvToDb() {
                         quotesId++;
                         quotesQuery = quotesQuery.concat(`(${quotesId},'${quote}'),`);
                         epcsQuotesQuery = epcsQuotesQuery.concat(`(${epcsId}, ${quotesId}),`)
-                    })
+                    });
+
+                    workplaceId -= workplaceIndex;
                 });
                 // prepared query for epcs (all values in one shot)
                 insertToDb(epcsQuery);
 
                 // prepared query for authors (all values in one shot)
                 insertToDb(authorsQuery);
+
+                // prepared query for workplaces
+                insertToDb(workplacesQuery);
 
                 // if authors and epcs exists, now we can push epcsAuthors
                 insertToDb(epcsAuthorsQuery);
@@ -161,7 +188,6 @@ function csvToDb() {
                 // after epcs exists and quotes too create relationship
                 insertToDb(epcsQuotesQuery);
 
-                console.log(authorsQuery)
                 // end connection to db
                 connection.end();
             });
@@ -199,16 +225,8 @@ function insertToDb(query) {
  * @param arch_num
  * @param issn
  */
-function writeEpc({id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages, workplace}) {
-    epcsQuery = epcsQuery.concat(`(${id},'${arch_num}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${issn}','${numberOfPages}','${workplace}'),`)
-
-    // FOR TESTING
-    // connection.query(`INSERT INTO epcs(id, epc_id, title, epc_cat, edition, publisher, year, isbn, numberOfPages, workplace) VALUES(${id},'${epc_id}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${numberOfPages}','${workplace}')`, (err, res, fields) => {
-    //     if (err) {
-    //         console.log(err);
-    //     }
-    //     console.log(res);
-    // })
+function writeEpc({id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages}) {
+    epcsQuery = epcsQuery.concat(`(${id},'${arch_num}','${title}','${epc_cat}','${edition}','${publisher}',${year},'${isbn}','${issn}','${numberOfPages}'),`)
 }
 
 /**
@@ -216,7 +234,7 @@ function writeEpc({id, arch_num, title, epc_cat, edition, publisher, year, isbn,
  * @param {string} item Strings of authors (dirty, unparsed), string should contain name of author and part (percentage) of him work on EPC
  * @returns {Array<{name: string, part: string}>}
  */
-function getAuthors(item) {
+function parseAuthors(item) {
     item = item.replace(/\[/g, '').replace(/]/g, '');
     const authors = item.split('-');
     const authorsArray = [];
