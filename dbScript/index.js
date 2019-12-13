@@ -29,6 +29,7 @@ const results = [];
 
 let allAuthors = [];
 let allWorkplaces = [];
+let allKeywords = [];
 let facultyId = -1;
 
 let epcsQuery = `INSERT INTO epcs(id, arch_num, title, epc_cat, edition, publisher, year, isbn, issn, numberOfPages) VALUES`;
@@ -89,9 +90,9 @@ function loadIds(callback) {
                     }
                 } else if (result[0].hasOwnProperty('lastIdKeywords')) {
                     if (result[0].lastIdKeywords) {
-                        keywordsId = result[0].lastIdKeywords;
+                        keywordsId = result[0].lastIdKeywords + 1;
                     } else {
-                        keywordsId = 0;
+                        keywordsId = 1;
                     }
                 } else if (result[0].hasOwnProperty('lastIdQuotes')) {
                     if (result[0].lastIdQuotes) {
@@ -150,7 +151,6 @@ function csvToDb() {
                         issn: info.ISSN,
                         numberOfPages: info.numberOfPages
                     });
-                    // console.log(row.workplace);
                     allWorkplaces.push(row.workplace);
                     allWorkplaces = [...new Set(allWorkplaces)];
                     let workplaceIndex = allWorkplaces.indexOf(row.workplace);
@@ -171,9 +171,6 @@ function csvToDb() {
                         }
                         if (epcsAuthorsQuery.indexOf(`('${author.part}', ${epcsId}, ${authorsId}, ${workplaceId})`) === -1) {
                             epcsAuthorsQuery = epcsAuthorsQuery.concat(`('${author.part}', ${epcsId}, ${authorsId}, ${workplaceId}),`);
-                        } else {
-                            console.log('duplicate');
-                            // console.log(`('${author.part}', ${epcsId}, ${authorsId}, ${workplaceId})`)
                         }
                         authorsId -= authorIndex;
                     });
@@ -197,30 +194,31 @@ function csvToDb() {
 
                     workplaceId -= workplaceIndex;
                 });
-                // // prepared query for epcs (all values in one shot)
-                // insertToDb(epcsQuery);
-                //
-                // // prepared query for authors (all values in one shot)
-                // insertToDb(authorsQuery);
-                //
-                // // prepared query for workplaces
-                // insertToDb(workplacesQuery);
-                //
-                // // if authors and epcs exists, now we can push epcsAuthors
-                // insertToDb(epcsAuthorsQuery);
-                //
-                // // prepared query for keywords
-                // insertToDb(keywordsQuery);
-                //
-                // // if keywords and epcs exists, now we can push epcsKeywords
-                // insertToDb(epcsKeywordsQuery);
-                //
-                // // insert quotes
-                // insertToDb(quotesQuery);
-                //
-                // // after epcs exists and quotes too create relationship
-                // insertToDb(epcsQuotesQuery);
-                console.log(epcsAuthorsQuery.length)
+                // prepared query for epcs (all values in one shot)
+                insertToDb(epcsQuery);
+
+                // prepared query for authors (all values in one shot)
+                insertToDb(authorsQuery);
+
+                // prepared query for workplaces
+                insertToDb(workplacesQuery);
+
+                // if authors and epcs exists, now we can push epcsAuthors
+                insertToDb(epcsAuthorsQuery);
+
+                // prepared query for keywords
+                insertToDb(keywordsQuery);
+
+                // if keywords and epcs exists, now we can push epcsKeywords
+                // console.log(epcsKeywordsQuery)
+                insertToDb(epcsKeywordsQuery);
+
+                // insert quotes
+                insertToDb(quotesQuery);
+
+                // after epcs exists and quotes too create relationship
+                insertToDb(epcsQuotesQuery);
+                // console.log(epcsAuthorsQuery.length)
                 // end connection to db
                 connection.end();
             });
@@ -236,6 +234,7 @@ function csvToDb() {
  */
 function insertToDb(query) {
     query = query.slice(0, -1);
+    query = query.replace(/'null'/g, null );
     connection.query(query, (error, results, fields) => {
         if (error) {
             console.log(error.code);
@@ -316,6 +315,13 @@ function parseInfo(info) {
                 publisher = element.replace(/(\s|,)/g, '').replace(/'/g, '\'\'').split('Spôsobprístupu:')[0];
             } else if (element.includes('vyd')) {
                 edition = element.replace(/[^a-zA-Z0-9.]/g, '');
+            }
+        }
+        if (numberOfPages && numberOfPages.includes('-')) {
+            const pagesDiff = numberOfPages.split('-');
+            numberOfPages = (parseInt(pagesDiff[1], 10) - parseInt(pagesDiff[0], 10)).toString();
+            if (numberOfPages.includes('-')) {
+                numberOfPages = null;
             }
         }
     });
