@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS `authors` (
 
 CREATE TABLE IF NOT EXISTS `epcs` (
   `id` int(11) NOT NULL,
-  `title` varchar(100) COLLATE utf8_unicode_ci NOT NULL,
-  `edition` varchar(50) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `title` varchar(1000) COLLATE utf8_unicode_ci NOT NULL,
+  `edition` varchar(100) COLLATE utf8_unicode_ci DEFAULT NULL,
   `publisher` varchar(300) COLLATE utf8_unicode_ci DEFAULT NULL,
   `numberOfPages` varchar(10) COLLATE utf8_unicode_ci DEFAULT NULL,
   `arch_num` varchar(20) COLLATE utf8_unicode_ci NOT NULL,
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS `keywords` (
 
 CREATE TABLE IF NOT EXISTS `quotes` (
 `id` int(11) NOT NULL,
-  `quote` varchar(200) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `quote` varchar(1000) COLLATE utf8_unicode_ci DEFAULT NULL,
   `year` year(4) NOT NULL,
   `code` varchar(3) COLLATE utf8_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
