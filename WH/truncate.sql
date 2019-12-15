@@ -1,0 +1,10 @@
+SET FOREIGN_KEY_CHECKS = 0; 
+TRUNCATE `BR_epcs_keywords`;
+TRUNCATE `DIM_authors`;
+TRUNCATE `DIM_authors_group`;
+TRUNCATE `DIM_epcs`;
+TRUNCATE `DIM_keywords`;
+TRUNCATE `DIM_quotes`;
+TRUNCATE `FACT_epc_quoted`;
+TRUNCATE `FACT_epc_written`;
+SET FOREIGN_KEY_CHECKS = 1; 
